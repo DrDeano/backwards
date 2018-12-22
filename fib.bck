@@ -1,0 +1,9 @@
+(answer)print;
+(5)fib := answer;
+
+        {
+    return (n - 2)fib + (n - 1)fib;
+    {
+return n;
+    } if n < 2
+        } |int: n|: int fib

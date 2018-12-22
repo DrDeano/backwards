@@ -4,6 +4,8 @@
 extern crate regex;
 use regex::Regex;
 use regex::Match;
+use std::env;
+use std::fs;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum TokenType {
@@ -11,6 +13,19 @@ enum TokenType {
     Identifier,
     Number,
     BinOperator,
+    Assignment,
+    SemiColon,
+    Colon,
+    Bar,
+    BasicType,
+    Return,
+    Print,
+    OpenRoundBracket,
+    CloseRoundBracket,
+    OpenCurlyBracket,
+    CloseCurlyBracket,
+    OpenSquareBracket,
+    CloseSquareBracket,
 }
 
 #[derive(Debug)]
@@ -78,10 +93,47 @@ fn set_up() -> Vec<TokenDefinition> {
     token_list.push(TokenDefinition::new(r"[a-zA-Z][a-zA-Z0-9]*", TokenType::Identifier, false));
     
     // Binary operator
-    token_list.push(TokenDefinition::new(r"[\+|-|/|\*]", TokenType::BinOperator, false));
+    token_list.push(TokenDefinition::new(r"[\+|\-|/|\*|<|>|<=|>=|=|!=]", TokenType::BinOperator, false));
     
     // Assignment operator
-    token_list.push(TokenDefinition::new(r":=", TokenType::Divide, false));
+    token_list.push(TokenDefinition::new(r":=", TokenType::Assignment, false));
+    
+    // Semi colon
+    token_list.push(TokenDefinition::new(r";", TokenType::SemiColon, false));
+    
+    // Colon
+    token_list.push(TokenDefinition::new(r":", TokenType::Colon, false));
+    
+    // Bar, for function arguments
+    token_list.push(TokenDefinition::new(r"\|", TokenType::Bar, false));
+    
+    // Bar, for function arguments
+    token_list.push(TokenDefinition::new(r"[int|bool|string|char|real]",
+                                         TokenType::BasicType, false));
+    
+    // Return
+    token_list.push(TokenDefinition::new(r"return",  TokenType::Return, false));
+    
+    // Print
+    token_list.push(TokenDefinition::new(r"print",  TokenType::Print, false));
+    
+    // OpenRoundBracket
+    token_list.push(TokenDefinition::new(r"\(",  TokenType::OpenRoundBracket, false));
+    
+    // CloseRoundBracket
+    token_list.push(TokenDefinition::new(r"\)",  TokenType::CloseRoundBracket, false));
+    
+    // OpenCurlyBracket
+    token_list.push(TokenDefinition::new(r"\{",  TokenType::OpenCurlyBracket, false));
+    
+    // CloseCurlyBracket
+    token_list.push(TokenDefinition::new(r"\}",  TokenType::CloseCurlyBracket, false));
+    
+    // OpenSquareBracket
+    token_list.push(TokenDefinition::new(r"\[",  TokenType::OpenSquareBracket, false));
+    
+    // CloseSquareBracket
+    token_list.push(TokenDefinition::new(r"\]",  TokenType::CloseSquareBracket, false));
     
     token_list
 }
@@ -97,8 +149,8 @@ fn lexer_string(file_string: &str) -> Vec<Token> {
     
     // While the index into the program string is less than the length of the program string
     while index < file_string.len() {
-        // Slice the file string to get the working part, which will be from the index of the current
-        // position of the program to the end of the string
+        // Slice the file string to get the working part, which will be from the index of the
+        // current position of the program to the end of the string
         let working_file_string: &str = &file_string[index..];
         
         println!("Working with: {}", working_file_string);
@@ -111,8 +163,8 @@ fn lexer_string(file_string: &str) -> Vec<Token> {
         
         let mut has_matched: bool = false;
         
-        // For each token to be matched against the program string, get the match that starts at the 'index'
-        // position of the program string
+        // For each token to be matched against the program string, get the match that starts at
+        // the 'index' position of the program string
         for token in &token_list {
             // Run the regex over the working program string
             let matched: Option<Match> = token.regex.find(working_file_string);
@@ -123,10 +175,12 @@ fn lexer_string(file_string: &str) -> Vec<Token> {
                 let matched_item: Match = matched.unwrap();
                 
                 // Make sure that the match is at the beginning of the working program string
-                // Also make sure that the match is the longest match possible from the list of possible tokens | This has been removed for now
+                // Also make sure that the match is the longest match possible from the list of
+                // possible tokens | This has been removed for now
                 // If all are true, then create a token to be added to the list of lexer tokens
                 
-                // For finding best match, make a list of all matches from matched_item.start() == 0 and return the one with the longest matched string
+                // For finding best match, make a list of all matches from matched_item.start() == 0
+                // and return the one with the longest matched string
                 if matched_item.start() == 0 /*&& matched_item.end() - matched_item.start() > matched_len*/ {
                     println!("matched item: {:?} with token: {:?}", matched_item, token);
                     has_matched = true;
@@ -153,7 +207,20 @@ fn lexer_string(file_string: &str) -> Vec<Token> {
 }
 
 fn main() {
-    let program_lex: Vec<Token> = lexer_string("3 := three");
+    let args: Vec<String> = env::args().collect();
+    
+    if args.len() < 2 {
+        println!("Please enter the program file");
+        return;
+    }
+    
+    let file_name: &str = &args[1];
+    
+    println!("Input file: {}", file_name);
+    
+    let program_string: String = fs::read_to_string(file_name).expect("Unable to read file");
+    
+    let program_lex: Vec<Token> = lexer_string(&program_string);
     for lex in &program_lex {
         println!("{:?}", lex);
     }
