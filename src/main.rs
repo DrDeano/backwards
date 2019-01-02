@@ -1,4 +1,4 @@
-//! # Lexer
+//! # Backwards
 //!
 
 extern crate regex;
@@ -79,7 +79,27 @@ impl Token {
     }
 }
 
-fn set_up() -> Vec<TokenDefinition> {
+fn slice_at_new_line(string: &str) -> &str {
+    // Convert the string into a byte array
+    let bytes = string.as_bytes();
+    
+    // For each byte in the string, check if it is a new line. If so, return the slice of the
+    // string, else, return the whole string
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b'\n' {
+            return &string[0..i];
+        }
+    }
+    &string[..]
+}
+
+fn lexer_error(previous_token: Token, current_string: &str) -> &str {
+    slice_at_new_line(current_string)
+}
+
+/// A set up function for creating all the tokens with there regex's and enum types and whether
+/// the token is ignored.
+fn set_up_lexer() -> Vec<TokenDefinition> {
     println!("Setting up the regex's");
     let mut token_list: Vec<TokenDefinition> = Vec::new();
     
@@ -87,13 +107,14 @@ fn set_up() -> Vec<TokenDefinition> {
     token_list.push(TokenDefinition::new(r"[ \t\n\r\f\v]+", TokenType::WhiteSpace, false));
     
     // Number
-    token_list.push(TokenDefinition::new(r"[1-9][0-9]*", TokenType::Number, false));
+    token_list.push(TokenDefinition::new(r"\-?[1-9][0-9]*", TokenType::Number, false));
     
     // Identifier
     token_list.push(TokenDefinition::new(r"[a-zA-Z][a-zA-Z0-9]*", TokenType::Identifier, false));
     
     // Binary operator
-    token_list.push(TokenDefinition::new(r"[\+|\-|/|\*|<|>|<=|>=|=|!=]", TokenType::BinOperator, false));
+    token_list.push(TokenDefinition::new(r"[\+|\-|/|\*|<|>|<=|>=|=|!=]",
+                                         TokenType::BinOperator, false));
     
     // Assignment operator
     token_list.push(TokenDefinition::new(r":=", TokenType::Assignment, false));
@@ -138,13 +159,17 @@ fn set_up() -> Vec<TokenDefinition> {
     token_list
 }
 
+/// Takes a program string and covert it into tokens that the parser will used
 fn lexer_string(file_string: &str) -> Vec<Token> {
+    // This stores the lex tokens for the program that will then be piped into the parser
     let mut program_lex: Vec<Token> = Vec::new();
     
-    let token_list: Vec<TokenDefinition> = set_up();
+    // This is the list of available tokens that are valid for the backwards programming language
+    let token_list: Vec<TokenDefinition> = set_up_lexer();
     
     println!("TokenDefinition: {:?}", token_list);
     
+    // The current index into the program string that the lexer is working at
     let mut index: usize = 0;
     
     // While the index into the program string is less than the length of the program string
@@ -155,12 +180,8 @@ fn lexer_string(file_string: &str) -> Vec<Token> {
         
         println!("Working with: {}", working_file_string);
         
-        // This stores the matched token at the 'index' position of the program string.
-        // let mut matched_token_definition: Option<&TokenDefinition> = None;
-        
-        // This stores the length of the match
-        // let mut matched_len: usize = 0;
-        
+        // Whether there was a previous match before so can check for user mistakes or no match has
+        // been found
         let mut has_matched: bool = false;
         
         // For each token to be matched against the program string, get the match that starts at
@@ -181,47 +202,88 @@ fn lexer_string(file_string: &str) -> Vec<Token> {
                 
                 // For finding best match, make a list of all matches from matched_item.start() == 0
                 // and return the one with the longest matched string
-                if matched_item.start() == 0 /*&& matched_item.end() - matched_item.start() > matched_len*/ {
+                if matched_item.start() == 0 {
                     println!("matched item: {:?} with token: {:?}", matched_item, token);
+                    
+                    if has_matched {
+                        // There has been a previous match for this string, maybe the user as used
+                        // a reserved word like 'int' for a identifier
+                        // Maybe check what mistake the user made in the parser
+                        // TODO Have a function that takes the previous match and the working
+                        // TODO string and produce a string that explains what is wrong
+                        panic!("Have already got a match at index: {}, string: {}\nExiting", index,
+                               lexer_error(program_lex.get(program_lex.len()), working_file_string));
+                    }
+                    
                     has_matched = true;
                     
-                    // Add the token
-                    program_lex.push(Token::new(token.token_type.clone(), matched_item.as_str(), index));
+                    // If the token match has it's 'ignored' bool set, then continue. Else add it
+                    // to the program_lex list
+                    if token.ignored {
+                        continue;
+                    } else {
+                        program_lex.push(Token::new(token.token_type.clone(),
+                                                    matched_item.as_str(), index));
+                    }
                     
                     // Advance the index
-                    index += matched_item.end() - matched_item.start();
+                    // matched_item.start() is 0, so end() will be the total length
+                    index += matched_item.end();
                     
-                    println!("index: {}", index);
-                    
-                    // Can exit the for loop as have a match
-                    break;
+                    // Continue the loop to check for other possible matches as the user may have
+                    // used a reserved keyword for a identifier
                 }
             }
         }
         
+        // If there was no match, then there was an invalid token at the start of the working
+        // program string
         if has_matched == false {
-            panic!("Unable to match at index: {}, string: '{}'", index, working_file_string);
+            panic!("Unable to match at index: {}, string: '{}'", index,
+                   lexer_error(program_lex.get(program_lex.len()), working_file_string));
         }
     }
+    
     return program_lex;
 }
 
+/// Take the program lex from the lexer and parse it using the backwards grammar.
+fn parse_program(program_lex: Vev<Token>) {
+
+}
+
+/// Take the parsed program and interpreted/run it
+//fn interpreted_program(program_parse) {
+
+//}
+
 fn main() {
+    // Get the argument for the program
     let args: Vec<String> = env::args().collect();
     
+    // Make sure a argument was passed to the program
     if args.len() < 2 {
         println!("Please enter the program file");
         return;
     }
     
+    // Get the argument passed to the program. Should be the file to open and parse
     let file_name: &str = &args[1];
     
     println!("Input file: {}", file_name);
     
+    // Try to open and read the file, else fail
     let program_string: String = fs::read_to_string(file_name).expect("Unable to read file");
     
+    // Lex the program
     let program_lex: Vec<Token> = lexer_string(&program_string);
     for lex in &program_lex {
         println!("{:?}", lex);
+    }
+    
+    // Parse the program
+    let program_parsed = parse_program(program_lex);
+    for parse in program_parsed {
+        println!("{:?}", parse);
     }
 }

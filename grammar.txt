@@ -6,17 +6,32 @@
 (* |  - Alternation *)
 (* =  - Definition *)
 
-white_space = ? white space characters ? ;
+statement = ( assignment | function_application ), ";" ;
 
-upper_letters = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" ;
-lower_letters = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
-letter = upper_letter | lower_letter ;
+assignment = type_expresion, ":=", identifier ;
 
-digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+type_expresion = basic_type, ": ", expresion ;
+
+expresion = function_application | identifier | number | string_literal ;
+
+(* Open bracket, with zero or one expresion as the argument, or a expresion followed by zero or more 'comma expresion' (list of arguments) *)
+function_application = "(", ( [expresion] | ( expresion, { ",", expresion } ) ), ")", ( identifier | built_in_function ) ;
+
+identifier = letter, { letter } ;
+
+basic_type = "int" | "bool" | "string" | "char" | "real" ;
+built_in_function = "print" ;
+
 number = [ "-" ], digit, { digit } ;
+digit = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
 
-identifier = ( "_" | lower_letters ), { ( "_" | lower_letters ) } ;
+string_literal = """, ? Any ASCII character ?, """ '
 
-basic_type = "int" | "bool" | "string" | "char" ;
+letter = upper_letter | lower_letter ;
+upper_letters = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M" |
+                "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" ;
 
-assignment = "let", identifier, ":=", expresion ;
+lower_letters = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m" |
+                "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
+
+white_space = ? white space characters ? ;
